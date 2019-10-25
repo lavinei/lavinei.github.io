@@ -13,12 +13,12 @@ In this example we will model a simulated dataset of daily item sales. Because t
 
 $$y_t \sim Pois(\mu_t)$$
 
-$$ log(\mu_t) = \lambda_t = F_t^{'} \theta_t $$
+$$\log(\mu_t) = \lambda_t = F_t^{'} \theta_t$$
 
 
-Where:
-$$\theta_t$$ is the state vector,
-$$\mu_t$$ is the Poisson mean, 
+Where 
+$$\theta_t$$ is the state vector, 
+$$\mu_t$$ is the Poisson mean, and 
 $$\lambda_t$$ is called the linear predictor.
 
 We're going to define a dynamic model with the following components in the state vector:
@@ -84,33 +84,33 @@ data.head()
   <tbody>
     <tr>
       <td>2014-06-01</td>
-      <td>6.0</td>
-      <td>-0.03</td>
+      <td>16.0</td>
+      <td>0.10</td>
       <td>0.0</td>
     </tr>
     <tr>
       <td>2014-06-02</td>
-      <td>10.0</td>
-      <td>0.14</td>
-      <td>0.0</td>
+      <td>6.0</td>
+      <td>-0.12</td>
+      <td>1.0</td>
     </tr>
     <tr>
       <td>2014-06-03</td>
-      <td>8.0</td>
-      <td>-0.09</td>
-      <td>0.0</td>
+      <td>11.0</td>
+      <td>0.06</td>
+      <td>1.0</td>
     </tr>
     <tr>
       <td>2014-06-04</td>
-      <td>6.0</td>
-      <td>-0.13</td>
+      <td>11.0</td>
+      <td>0.09</td>
       <td>0.0</td>
     </tr>
     <tr>
       <td>2014-06-05</td>
-      <td>10.0</td>
-      <td>-0.05</td>
-      <td>0.0</td>
+      <td>18.0</td>
+      <td>0.09</td>
+      <td>1.0</td>
     </tr>
   </tbody>
 </table>
@@ -191,7 +191,7 @@ plt.show(fig)
 ![png](../img/pybats_example_imgs/output_14_0.png)
 
 
-We're plotting the median forecasts along with the 75\% credible intervals. One very clear pattern is the weekly effect, with a weekly spike in our forecasts. There's also a very noticable holiday effect - sales are unpredictable on holidays, and our credible intervals become very large.
+We're plotting the median forecasts along with the 75% credible intervals. One very clear pattern is the weekly effect, with a weekly spike in our forecasts. There's also a very noticable holiday effect - sales are unpredictable on holidays, and our credible intervals become very large.
 
 You're probably wondering: How accurate are those point forecasts?
 
@@ -202,15 +202,15 @@ print(MAD(data_1step.Sales, median(samples_1step)))
 print(ZAPE(data_1step.Sales, median(samples_1step)))
 ```
 
-    2.35559921415
-    36.7385246064
+    2.86935166994
+    43.2259680035
 
 
 The first loss function is the Mean Absolute Deviation (MAD). Note that we're using the median for our point forecast - the median is the optimal forecast for minimizing the MAD, just as the mean is optimal for minimizing the Mean Square Error (MSE).
 
 The second number is the Zero-Adjusted Absolute Percent Error (ZAPE). This is equivalent to the Mean Absolute Percent Error (MAPE), but is still defined even when the sales are 0. On days when sales are 0, then the ZAPE loss is equal to the forecast. Interpreting this as a percent error metric, we're off by a significant margin - but not bad for noisy sales data either! The median is not the optimal forecast to minimize ZAPE, but it's a simple and easy point forecast to obtain.
 
-Okay, now let's zoom in to just the final 60 days of forecasting, to a more detail picture of our online, sequential forecasts:
+Okay, now let's zoom in to just the final 60 days of forecasting, to a more detailed picture of our online, sequential forecasts:
 
 
 ```python
@@ -234,7 +234,7 @@ plt.show(fig)
 ![png](../img/pybats_example_imgs/output_19_0.png)
 
 
-These forecasts look pretty good! Our 75\% credible intervals capture the true sales most of the time, as it should.  The weekly pattern is much more clearly visible here.
+These forecasts look pretty good! Our 75% credible intervals capture the true sales most of the time, as it should.  The weekly pattern is much more clearly visible here.
 
 What if we want to monitor the day-of-week effects? It looks like they're changing over time - what days are becoming more or less popular? Well, that's why we saved the model coefficients, so we can answer exactly that question!
 
@@ -274,7 +274,7 @@ days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sun
 
 
 ```python
-start_day = 200
+start_day = 200    # Only starting to plot after model has learned the day-of-week effect
 fig, ax = plt.subplots(1,1)
 ax = plot_coef(fig, ax, dow_post_mean_plot.iloc[start_day:], dates=data.iloc[start_day:].loc[:forecast_end].index, legend=days)
 ```
@@ -290,7 +290,7 @@ plt.show(fig)
 
 Okay, now this is interesting! We have a few clear takeaways:
 
-- Saturday and Sunday have the highest sales, followed by Friday
+- Saturday and Sunday have the highest sales
 - Monday through Thursday all have very similar sales, with coefficients between -0.1 to -0.2.
 
 These effects in the state space are additive on the log scale. Remember the Poisson DGLM has a log-link function:
@@ -323,12 +323,13 @@ plt.show(fig)
 ![png](../img/pybats_example_imgs/output_33_0.png)
 
 
-Perfect, this is very clear! A multiplicative seasonal effect of 1 has no effect on Sales. Anything larger than 1 boosts sales, and smaller than 1 reduces them.
+Perfect, this is very clear! A multiplicative seasonal effect of 1 has no effect on Sales. Anything larger than 1 boosts sales, and smaller than 1 reduces them. Looking at the end of the time period, we can say:
 
-- Saturday and Sunday have around 30-40% higher sales than the average day, and Friday has around 10% higher sales. 
+- Saturday and Sunday have around 30-40% higher sales than the average day.
 - Monday-Thursday all have between 10-20% lower sales than the average day.
+- Friday lands in the middle, with approximately average sales.
 
-The long term trends look fairly stable, which is natural - shopping habits change slowly over time. Part of that also comes from our model definition. The discount factor on the seasonality is very close to 1, so we discount historical information very slowly. If we believed that these trends changed more rapidly over time, we could re-run the analysis with a lower discount factor, using the parameter _delseas_ as an argument to the analysis function.
+The long term trends look fairly stable, which is natural - shopping habits change slowly over time. Part of that also comes from our model definition. The discount factor on the seasonality component is very close to 1, so we discount historical information slowly. If we believed that these day-of-week effects changed more rapidly over time, we could re-run the analysis with a lower discount factor, using the parameter _delseas_ as an argument to the analysis function.
 
 ### Conclusions
 
@@ -342,5 +343,5 @@ In this example we've used the PyBATS package to complete an analysis of simulat
 There's plenty more that we could have explored here as well:
 
 - Forecasts with a longer horizon. How accurate are our 7-day ahead forecasts, and are they also well calibrated?
-- Other state vector components, such as the trend, regression, and holiday terms. They are all saved in the _model_coef_ output. To interpret them, we need to transform from the log scale into the space of the conjugate prior, just as we did with the seasonal effects.
+- Other state vector components, such as the trend, regression, and holiday terms. They are all saved in the *model_coef* output. To interpret them, we need to transform from the log scale into the space of the conjugate prior, just as we did with the seasonal effects.
 - Forecast _totals_ over the next week or month. This type of forecasting requires drawing joint samples over 1:k days into the future, and then taking a sum over each sample from the forecast distribution. This is known as _path forecasting_, and can be accomplished with the method *mod.path_forecast*.
